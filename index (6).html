@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Executive KPI Dashboard — Data PM Portfolio</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F5F5F3; color: #2C2C2A; font-size: 14px; }
+  .db-topbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 0.5px solid #E0E0DC; background: #fff; position: sticky; top: 0; z-index: 100; }
+  .db-logo { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .db-logo-dot { width: 8px; height: 8px; border-radius: 50%; background: #1D9E75; }
+  .db-nav { display: flex; gap: 4px; }
+  .db-nav button { font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; color: #888780; background: none; border: none; font-family: inherit; transition: all 0.15s; }
+  .db-nav button.active, .db-nav button:hover { background: #F1EFE8; color: #2C2C2A; font-weight: 500; }
+  .db-filters { display: flex; gap: 8px; align-items: center; }
+  .db-filters select { font-size: 12px; border: 0.5px solid #D3D1C7; border-radius: 8px; padding: 4px 8px; background: #fff; color: #2C2C2A; cursor: pointer; outline: none; }
+  .db-badge { font-size: 11px; padding: 3px 8px; border-radius: 20px; background: #E1F5EE; color: #0F6E56; font-weight: 500; }
+  .db-main { display: grid; grid-template-columns: 180px 1fr; min-height: calc(100vh - 53px); }
+  .db-sidebar { border-right: 0.5px solid #E0E0DC; padding: 16px 0; background: #fff; }
+  .db-sidebar-section { padding: 0 12px; margin-bottom: 20px; }
+  .db-sidebar-label { font-size: 10px; font-weight: 500; color: #B4B2A9; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; padding: 0 4px; }
+  .sttab { display: block; width: 100%; font-size: 11px; padding: 6px 10px; border-radius: 20px; cursor: pointer; border: 0.5px solid #D3D1C7; color: #888780; background: #fff; margin-bottom: 4px; text-align: left; font-family: inherit; transition: all 0.15s; }
+  .sttab.active { background: #1D9E75; color: #fff; border-color: #1D9E75; }
+  .sttab:hover:not(.active) { background: #F1EFE8; color: #2C2C2A; }
+  .db-sidebar-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; font-size: 12px; color: #888780; cursor: pointer; margin-bottom: 2px; transition: background 0.15s; user-select: none; }
+  .db-sidebar-item.active { background: #F1EFE8; color: #2C2C2A; font-weight: 500; }
+  .db-sidebar-item:hover { background: #F1EFE8; color: #2C2C2A; }
+  .sb-icon { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+  .db-content { padding: 16px 20px; background: #F5F5F3; overflow: auto; }
+  .content-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+  .view-title { font-size: 15px; font-weight: 500; color: #2C2C2A; }
+  .view-sub { font-size: 11px; color: #888780; margin-top: 3px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+  .kpi-card { background: #fff; border: 0.5px solid #D3D1C7; border-radius: 12px; padding: 14px 16px; }
+  .kpi-label { font-size: 11px; color: #888780; margin-bottom: 6px; }
+  .kpi-value { font-size: 22px; font-weight: 500; color: #2C2C2A; margin-bottom: 4px; line-height: 1.1; }
+  .kpi-delta { font-size: 11px; display: flex; align-items: center; gap: 3px; }
+  .kpi-delta.up { color: #0F6E56; }
+  .kpi-delta.down { color: #993C1D; }
+  .kpi-sparkline { margin-top: 8px; }
+  .chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .chart-card { background: #fff; border: 0.5px solid #D3D1C7; border-radius: 12px; padding: 16px; }
+  .chart-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+  .chart-title { font-size: 13px; font-weight: 500; color: #2C2C2A; }
+  .chart-subtitle { font-size: 11px; color: #888780; margin-top: 2px; }
+  .chart-legend { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #888780; }
+  .bottom-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .table-card { background: #fff; border: 0.5px solid #D3D1C7; border-radius: 12px; padding: 16px; }
+  .mini-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .mini-table th { font-size: 10px; font-weight: 500; color: #B4B2A9; text-align: left; padding: 0 0 8px; border-bottom: 0.5px solid #D3D1C7; text-transform: uppercase; letter-spacing: 0.05em; }
+  .mini-table td { padding: 7px 0; border-bottom: 0.5px solid #F1EFE8; color: #2C2C2A; vertical-align: middle; }
+  .mini-table tr:last-child td { border-bottom: none; }
+  .region-pill { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 500; }
+  .pill-na   { background:#E6F1FB; color:#185FA5; }
+  .pill-eu   { background:#E1F5EE; color:#0F6E56; }
+  .pill-apac { background:#FAEEDA; color:#854F0B; }
+  .pill-latam{ background:#FBEAF0; color:#993556; }
+  .progress-bar { height: 4px; background: #F1EFE8; border-radius: 4px; overflow: hidden; flex: 1; }
+  .progress-fill { height: 100%; border-radius: 4px; }
+  .alert-card { background: #fff; border: 0.5px solid #D3D1C7; border-radius: 12px; padding: 16px; }
+  .alert-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid #F1EFE8; }
+  .alert-item:last-child { border-bottom: none; }
+  .alert-icon { width: 24px; height: 24px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+  .alert-icon.warn { background:#FAEEDA; color:#854F0B; }
+  .alert-icon.ok   { background:#E1F5EE; color:#0F6E56; }
+  .alert-icon.info { background:#E6F1FB; color:#185FA5; }
+  .alert-title { font-size: 12px; font-weight: 500; color: #2C2C2A; }
+  .alert-sub   { font-size: 11px; color: #888780; margin-top: 2px; }
+  /* Drill panel */
+  .drill-label { font-size: 10px; font-weight: 500; color: #B4B2A9; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .drill-badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 500; margin: 2px 2px 2px 0; cursor: default; }
+</style>
+</head>
+<body>
+
+<div class="db-topbar">
+  <div class="db-logo"><div class="db-logo-dot"></div>ExecPulse · KPI Platform</div>
+  <div class="db-nav">
+    <button class="active" onclick="setNav(this,'overview')">Overview</button>
+    <button onclick="setNav(this,'revenue')">Revenue</button>
+    <button onclick="setNav(this,'operations')">Operations</button>
+    <button onclick="setNav(this,'products')">Products</button>
+    <button onclick="setNav(this,'people')">People</button>
+  </div>
+  <div class="db-filters">
+    <select id="regionFilter" onchange="applyRegionFilter()">
+      <option value="all">All Regions</option>
+      <option value="na">North America</option>
+      <option value="eu">Europe</option>
+      <option value="apac">APAC</option>
+      <option value="latam">LATAM</option>
+    </select>
+    <select id="periodFilter" onchange="applyPeriodFilter()">
+      <option value="q1">Q1 2025</option>
+      <option value="q2">Q2 2025</option>
+      <option value="q3">Q3 2025</option>
+      <option value="q4" selected>Q4 2025</option>
+    </select>
+    <div class="db-badge">● Live</div>
+  </div>
+</div>
+
+<div class="db-main">
+  <!-- SIDEBAR -->
+  <div class="db-sidebar">
+    <div class="db-sidebar-section">
+      <div class="db-sidebar-label">Stakeholder view</div>
+      <button class="sttab active" onclick="setStakeholder(this,'cfo')">CFO — Revenue</button>
+      <button class="sttab" onclick="setStakeholder(this,'ops')">Ops — Efficiency</button>
+      <button class="sttab" onclick="setStakeholder(this,'product')">Product — Usage</button>
+    </div>
+    <div class="db-sidebar-section">
+      <div class="db-sidebar-label">Drill-down</div>
+      <div class="db-sidebar-item active" onclick="setDrill(this,'region')">
+        <svg class="sb-icon" viewBox="0 0 14 14" fill="none"><rect width="14" height="14" rx="3" fill="#1D9E75" opacity="0.15"/><rect x="3" y="3" width="8" height="2" rx="1" fill="#1D9E75"/><rect x="3" y="6.5" width="6" height="2" rx="1" fill="#1D9E75"/><rect x="3" y="10" width="4" height="2" rx="1" fill="#1D9E75"/></svg>
+        By Region
+      </div>
+      <div class="db-sidebar-item" onclick="setDrill(this,'product')">
+        <svg class="sb-icon" viewBox="0 0 14 14" fill="none"><rect width="14" height="14" rx="3" fill="#378ADD" opacity="0.15"/><circle cx="7" cy="7" r="3" stroke="#378ADD" stroke-width="1.5"/></svg>
+        By Product
+      </div>
+      <div class="db-sidebar-item" onclick="setDrill(this,'team')">
+        <svg class="sb-icon" viewBox="0 0 14 14" fill="none"><rect width="14" height="14" rx="3" fill="#D4537E" opacity="0.15"/><path d="M3 11 L7 4 L11 7" stroke="#D4537E" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        By Team
+      </div>
+      <div class="db-sidebar-item" onclick="setDrill(this,'customer')">
+        <svg class="sb-icon" viewBox="0 0 14 14" fill="none"><rect width="14" height="14" rx="3" fill="#7F77DD" opacity="0.15"/><rect x="3" y="9" width="2" height="3" rx="1" fill="#7F77DD"/><rect x="6.5" y="6" width="2" height="6" rx="1" fill="#7F77DD"/><rect x="10" y="3" width="2" height="9" rx="1" fill="#7F77DD"/></svg>
+        By Customer
+      </div>
+    </div>
+    <div class="db-sidebar-section">
+      <div class="db-sidebar-label">Saved views</div>
+      <div class="db-sidebar-item" onclick="alert('Board Report view — add your exported PDF link here.')">Board Report</div>
+      <div class="db-sidebar-item" onclick="alert('Weekly Digest view — connect to your email pipeline.')">Weekly Digest</div>
+      <div class="db-sidebar-item" onclick="alert('QBR Pack — link to your quarterly review deck.')">QBR Pack</div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="db-content">
+    <div class="content-header">
+      <div>
+        <div class="view-title" id="viewTitle">CFO Revenue View — Q4 2025</div>
+        <div class="view-sub" id="viewSub">Last refreshed 4 min ago · 23 data sources connected</div>
+      </div>
+    </div>
+
+    <!-- DRILL PANEL (hidden by default) -->
+    <div id="drillPanel" style="display:none; background:#fff; border:0.5px solid #D3D1C7; border-radius:12px; padding:14px 16px; margin-bottom:16px;">
+      <div class="drill-label" id="drillLabel">Breakdown</div>
+      <div id="drillContent"></div>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label" id="kl1">Total Revenue</div>
+        <div class="kpi-value" id="kv1">$48.3M</div>
+        <div class="kpi-delta up" id="kd1">↑ +12.4% vs last quarter</div>
+        <div class="kpi-sparkline"><svg viewBox="0 0 80 24" width="100%" height="24"><polyline points="0,20 13,16 26,18 39,10 52,12 65,6 80,4" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label" id="kl2">Gross Margin</div>
+        <div class="kpi-value" id="kv2">68.2%</div>
+        <div class="kpi-delta up" id="kd2">↑ +2.1pp vs target</div>
+        <div class="kpi-sparkline"><svg viewBox="0 0 80 24" width="100%" height="24"><polyline points="0,18 13,15 26,14 39,12 52,10 65,9 80,7" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label" id="kl3">CAC</div>
+        <div class="kpi-value" id="kv3">$214</div>
+        <div class="kpi-delta up" id="kd3">↓ −8.3% vs last Q</div>
+        <div class="kpi-sparkline"><svg viewBox="0 0 80 24" width="100%" height="24"><polyline points="0,6 13,9 26,8 39,12 52,13 65,16 80,18" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label" id="kl4">ARR</div>
+        <div class="kpi-value" id="kv4">$193M</div>
+        <div class="kpi-delta up" id="kd4">↑ +18.7% YoY</div>
+        <div class="kpi-sparkline"><svg viewBox="0 0 80 24" width="100%" height="24"><polyline points="0,22 13,19 26,16 39,14 52,11 65,8 80,4" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW -->
+    <div class="chart-row">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title" id="mainChartTitle">Revenue vs Cost — Monthly Trend</div>
+            <div class="chart-subtitle">Rolling 12 months</div>
+          </div>
+          <div class="chart-legend" id="mainLegend">
+            <div class="legend-item"><span class="legend-dot" style="background:#1D9E75;"></span>Revenue</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#D85A30;"></span>COGS</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#378ADD;"></span>OpEx</div>
+          </div>
+        </div>
+        <div style="position:relative;width:100%;height:180px;"><canvas id="mainChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title" id="donutTitle">Revenue by Region</div>
+            <div class="chart-subtitle" id="donutPeriod">Q4 2025 split</div>
+          </div>
+        </div>
+        <div style="position:relative;width:100%;height:140px;"><canvas id="donutChart"></canvas></div>
+        <div class="chart-legend" id="donutLegend" style="margin-top:10px;justify-content:center;">
+          <div class="legend-item"><span class="legend-dot" style="background:#1D9E75;"></span>NA 42%</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#378ADD;"></span>EU 28%</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#EF9F27;"></span>APAC 21%</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#D4537E;"></span>LATAM 9%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW -->
+    <div class="bottom-row" id="bottomRow">
+      <!-- Products table -->
+      <div class="table-card">
+        <div class="chart-header" style="margin-bottom:10px;"><div class="chart-title" id="tbl1Title">Top Products</div></div>
+        <table class="mini-table" id="tbl1">
+          <tr><th>Product</th><th>Revenue</th><th>Growth</th></tr>
+          <tr><td>Enterprise Suite</td><td style="font-weight:500;">$18.2M</td><td style="color:#0F6E56;font-weight:500;">↑ 24%</td></tr>
+          <tr><td>Data Platform</td><td style="font-weight:500;">$12.4M</td><td style="color:#0F6E56;">↑ 16%</td></tr>
+          <tr><td>Analytics Pro</td><td style="font-weight:500;">$9.1M</td><td style="color:#0F6E56;">↑ 9%</td></tr>
+          <tr><td>Starter Plan</td><td style="font-weight:500;">$5.3M</td><td style="color:#993C1D;">↓ 3%</td></tr>
+          <tr><td>Marketplace</td><td style="font-weight:500;">$3.3M</td><td style="color:#0F6E56;">↑ 41%</td></tr>
+        </table>
+      </div>
+      <!-- Regional performance -->
+      <div class="table-card">
+        <div class="chart-header" style="margin-bottom:10px;"><div class="chart-title" id="tbl2Title">Regional Performance</div></div>
+        <div id="tbl2">
+          <table class="mini-table">
+            <tr><th>Region</th><th>vs Target</th></tr>
+            <tr><td><span class="region-pill pill-na">NA</span></td><td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar"><div class="progress-fill" style="width:96%;background:#1D9E75;"></div></div><span style="font-size:11px;font-weight:500;color:#0F6E56;">96%</span></div></td></tr>
+            <tr><td><span class="region-pill pill-eu">EU</span></td><td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar"><div class="progress-fill" style="width:100%;background:#1D9E75;"></div></div><span style="font-size:11px;font-weight:500;color:#0F6E56;">104%</span></div></td></tr>
+            <tr><td><span class="region-pill pill-apac">APAC</span></td><td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar"><div class="progress-fill" style="width:81%;background:#EF9F27;"></div></div><span style="font-size:11px;font-weight:500;color:#854F0B;">81%</span></div></td></tr>
+            <tr><td><span class="region-pill pill-latam">LATAM</span></td><td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar"><div class="progress-fill" style="width:72%;background:#D85A30;"></div></div><span style="font-size:11px;font-weight:500;color:#993C1D;">72%</span></div></td></tr>
+          </table>
+        </div>
+      </div>
+      <!-- Alerts -->
+      <div class="alert-card">
+        <div class="chart-header" style="margin-bottom:8px;"><div class="chart-title">Alerts & Signals</div></div>
+        <div class="alert-item"><div class="alert-icon warn">!</div><div><div class="alert-title">APAC churn spike +3.2%</div><div class="alert-sub">Triggered 2h ago · 3 accounts at risk</div></div></div>
+        <div class="alert-item"><div class="alert-icon ok">✓</div><div><div class="alert-title">Q4 revenue target hit early</div><div class="alert-sub">$48.3M — 6 days ahead of schedule</div></div></div>
+        <div class="alert-item"><div class="alert-icon info">↑</div><div><div class="alert-title">EU demand forecast +18%</div><div class="alert-sub">Model confidence: 87% · Q1 2026</div></div></div>
+        <div class="alert-item"><div class="alert-icon warn">!</div><div><div class="alert-title">COGS variance detected</div><div class="alert-sub">$1.2M above plan in Nov · Review</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const stakeholderData = {
+  cfo: {
+    title: 'CFO Revenue View',
+    kpis: [
+      { label:'Total Revenue', value:'$48.3M', delta:'↑ +12.4% vs last quarter', dir:'up' },
+      { label:'Gross Margin',  value:'68.2%',  delta:'↑ +2.1pp vs target',       dir:'up' },
+      { label:'CAC',           value:'$214',   delta:'↓ −8.3% vs last Q',        dir:'up' },
+      { label:'ARR',           value:'$193M',  delta:'↑ +18.7% YoY',             dir:'up' }
+    ],
+    chartTitle: 'Revenue vs Cost — Monthly Trend',
+    legend: [['#1D9E75','Revenue'],['#D85A30','COGS'],['#378ADD','OpEx']],
+    datasets: [[28,31,29,35,38,36,40,43,41,45,44,48],[14,15,14,16,17,16,17,18,18,19,21,20],[9,10,9,11,12,11,13,13,12,14,14,15]]
+  },
+  ops: {
+    title: 'Operations Efficiency View',
+    kpis: [
+      { label:'Avg Resolution', value:'4.2h',   delta:'↓ −18% (improving)',    dir:'up' },
+      { label:'Uptime SLA',     value:'99.94%', delta:'↑ +0.02% vs target',    dir:'up' },
+      { label:'Cost / Ticket',  value:'$31',    delta:'↓ −12% vs last Q',      dir:'up' },
+      { label:'Incidents',      value:'14',     delta:'↓ −40% vs Q3 2025',     dir:'up' }
+    ],
+    chartTitle: 'Ticket Volume — Monthly Trend',
+    legend: [['#378ADD','Tickets'],['#7F77DD','MTTR (hrs)'],['#EF9F27','Cost/ticket']],
+    datasets: [[420,380,350,410,390,360,330,310,290,280,260,240],[68,65,62,64,59,55,52,49,47,45,43,42],[38,36,35,37,34,33,32,31,32,30,31,31]]
+  },
+  product: {
+    title: 'Product Usage View',
+    kpis: [
+      { label:'MAU',              value:'84.2K', delta:'↑ +31% YoY',                  dir:'up' },
+      { label:'Feature Adoption', value:'62%',   delta:'↑ +9pp core features',         dir:'up' },
+      { label:'NPS Score',        value:'71',    delta:'↑ +4pts vs last quarter',      dir:'up' },
+      { label:'Churn Rate',       value:'2.1%',  delta:'↓ −0.4% monthly (improving)', dir:'up' }
+    ],
+    chartTitle: 'MAU Growth — Monthly Trend',
+    legend: [['#7F77DD','MAU (K)'],['#1D9E75','WAU (K)'],['#378ADD','Retention %']],
+    datasets: [[42,44,46,49,51,54,57,61,65,69,74,84],[55,57,59,62,64,67,70,73,77,80,84,88],[78,79,80,80,81,82,82,83,84,84,85,86]]
+  }
+};
+
+// Nav tab → stakeholder mapping
+const navStakeholder = { overview:'cfo', revenue:'cfo', operations:'ops', products:'product', people:'product' };
+
+// Nav tab → donut context
+const navDonut = {
+  overview: { title:'Revenue by Region', labels:['NA 42%','EU 28%','APAC 21%','LATAM 9%'], data:[42,28,21,9], colors:['#1D9E75','#378ADD','#EF9F27','#D4537E'] },
+  revenue:  { title:'Revenue by Source', labels:['New Biz 38%','Renewal 44%','Expansion 18%'], data:[38,44,18], colors:['#1D9E75','#378ADD','#7F77DD'] },
+  operations:{ title:'Ticket by Category', labels:['Infra 45%','App 30%','Security 15%','Other 10%'], data:[45,30,15,10], colors:['#378ADD','#7F77DD','#EF9F27','#D3D1C7'] },
+  products: { title:'Revenue by Product', labels:['Enterprise 38%','Platform 26%','Analytics 19%','Starter 11%','Market 7%'], data:[38,26,19,11,7], colors:['#1D9E75','#378ADD','#7F77DD','#EF9F27','#D4537E'] },
+  people:   { title:'Headcount by Dept', labels:['Eng 40%','Sales 25%','CS 20%','Ops 15%'], data:[40,25,20,15], colors:['#7F77DD','#1D9E75','#378ADD','#EF9F27'] }
+};
+
+// Drill-down content
+const drillData = {
+  region: {
+    label: 'Revenue breakdown by region',
+    html: `<table class="mini-table"><tr><th>Region</th><th>Revenue</th><th>vs Target</th><th>Growth YoY</th></tr>
+      <tr><td><span class="region-pill pill-na">NA</span></td><td style="font-weight:500;">$20.3M</td><td style="color:#0F6E56;">96%</td><td style="color:#0F6E56;">↑ 14%</td></tr>
+      <tr><td><span class="region-pill pill-eu">EU</span></td><td style="font-weight:500;">$13.5M</td><td style="color:#0F6E56;">104%</td><td style="color:#0F6E56;">↑ 19%</td></tr>
+      <tr><td><span class="region-pill pill-apac">APAC</span></td><td style="font-weight:500;">$10.1M</td><td style="color:#854F0B;">81%</td><td style="color:#0F6E56;">↑ 7%</td></tr>
+      <tr><td><span class="region-pill pill-latam">LATAM</span></td><td style="font-weight:500;">$4.4M</td><td style="color:#993C1D;">72%</td><td style="color:#993C1D;">↓ 2%</td></tr>
+    </table>`
+  },
+  product: {
+    label: 'Revenue breakdown by product line',
+    html: `<table class="mini-table"><tr><th>Product</th><th>Revenue</th><th>Margin</th><th>Growth</th><th>Top Region</th></tr>
+      <tr><td>Enterprise Suite</td><td style="font-weight:500;">$18.2M</td><td>72%</td><td style="color:#0F6E56;">↑ 24%</td><td><span class="region-pill pill-na">NA</span></td></tr>
+      <tr><td>Data Platform</td><td style="font-weight:500;">$12.4M</td><td>68%</td><td style="color:#0F6E56;">↑ 16%</td><td><span class="region-pill pill-eu">EU</span></td></tr>
+      <tr><td>Analytics Pro</td><td style="font-weight:500;">$9.1M</td><td>65%</td><td style="color:#0F6E56;">↑ 9%</td><td><span class="region-pill pill-na">NA</span></td></tr>
+      <tr><td>Starter Plan</td><td style="font-weight:500;">$5.3M</td><td>55%</td><td style="color:#993C1D;">↓ 3%</td><td><span class="region-pill pill-apac">APAC</span></td></tr>
+      <tr><td>Marketplace</td><td style="font-weight:500;">$3.3M</td><td>81%</td><td style="color:#0F6E56;">↑ 41%</td><td><span class="region-pill pill-eu">EU</span></td></tr>
+    </table>`
+  },
+  team: {
+    label: 'Performance breakdown by team',
+    html: `<table class="mini-table"><tr><th>Team</th><th>Revenue Owned</th><th>Quota Attainment</th><th>Deals Closed</th></tr>
+      <tr><td>Enterprise Sales</td><td style="font-weight:500;">$22.1M</td><td style="color:#0F6E56;">108%</td><td>34</td></tr>
+      <tr><td>Mid-Market</td><td style="font-weight:500;">$14.6M</td><td style="color:#0F6E56;">97%</td><td>91</td></tr>
+      <tr><td>SMB / PLG</td><td style="font-weight:500;">$7.4M</td><td style="color:#854F0B;">82%</td><td>312</td></tr>
+      <tr><td>Partnerships</td><td style="font-weight:500;">$4.2M</td><td style="color:#993C1D;">74%</td><td>18</td></tr>
+    </table>`
+  },
+  customer: {
+    label: 'Top customers by revenue contribution',
+    html: `<table class="mini-table"><tr><th>Customer</th><th>Segment</th><th>ARR</th><th>Health</th><th>Renewal</th></tr>
+      <tr><td>Acme Corp</td><td>Enterprise</td><td style="font-weight:500;">$4.2M</td><td style="color:#0F6E56;">● Healthy</td><td>Jan 2026</td></tr>
+      <tr><td>GlobalTech</td><td>Enterprise</td><td style="font-weight:500;">$3.8M</td><td style="color:#0F6E56;">● Healthy</td><td>Mar 2026</td></tr>
+      <tr><td>RetailCo</td><td>Mid-Market</td><td style="font-weight:500;">$1.9M</td><td style="color:#854F0B;">● At Risk</td><td>Feb 2026</td></tr>
+      <tr><td>FinServ Ltd</td><td>Enterprise</td><td style="font-weight:500;">$1.6M</td><td style="color:#0F6E56;">● Healthy</td><td>Jun 2026</td></tr>
+      <tr><td>MedGroup</td><td>Mid-Market</td><td style="font-weight:500;">$1.1M</td><td style="color:#993C1D;">● Churning</td><td>Dec 2025</td></tr>
+    </table>`
+  }
+};
+
+const periodLabel = { q1:'Q1 2025', q2:'Q2 2025', q3:'Q3 2025', q4:'Q4 2025' };
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let currentStakeholder = 'cfo';
+let currentNav = 'overview';
+let currentDrill = 'region';
+let currentPeriod = 'q4';
+let mainChart, donutChart;
+
+// ── CHART BUILDERS ────────────────────────────────────────────────────────────
+function buildMainChart(key) {
+  const d = stakeholderData[key];
+  if (mainChart) mainChart.destroy();
+  mainChart = new Chart(document.getElementById('mainChart'), {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: d.datasets.map((data, i) => ({
+        data,
+        backgroundColor: d.legend[i][0] + '99',
+        borderColor: d.legend[i][0],
+        borderWidth: 1,
+        borderRadius: 3
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#B4B2A9' } },
+        y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 10 }, color: '#B4B2A9' } }
+      }
+    }
+  });
+  document.getElementById('mainChartTitle').textContent = d.chartTitle;
+  document.getElementById('mainLegend').innerHTML = d.legend.map(([c,l]) =>
+    `<div class="legend-item"><span class="legend-dot" style="background:${c};"></span>${l}</div>`
+  ).join('');
+}
+
+function buildDonutChart(navKey) {
+  const d = navDonut[navKey];
+  if (donutChart) donutChart.destroy();
+  donutChart = new Chart(document.getElementById('donutChart'), {
+    type: 'doughnut',
+    data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: d.colors, borderWidth: 0, hoverOffset: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { display: false } } }
+  });
+  document.getElementById('donutTitle').textContent = d.title;
+  document.getElementById('donutLegend').innerHTML = d.labels.map((l,i) =>
+    `<div class="legend-item"><span class="legend-dot" style="background:${d.colors[i]};"></span>${l}</div>`
+  ).join('');
+}
+
+// ── SETTERS ───────────────────────────────────────────────────────────────────
+function setStakeholder(el, key) {
+  document.querySelectorAll('.sttab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentStakeholder = key;
+  const d = stakeholderData[key];
+  d.kpis.forEach((m, i) => {
+    const n = i + 1;
+    document.getElementById('kl' + n).textContent = m.label;
+    document.getElementById('kv' + n).textContent = m.value;
+    const el = document.getElementById('kd' + n);
+    el.textContent = m.delta;
+    el.className = 'kpi-delta ' + m.dir;
+  });
+  buildMainChart(key);
+  updateViewTitle();
+}
+
+function setNav(el, key) {
+  document.querySelectorAll('.db-nav button').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  currentNav = key;
+  // Switch stakeholder view to match nav
+  const sKey = navStakeholder[key];
+  const matchingTab = [...document.querySelectorAll('.sttab')].find(t => t.getAttribute('onclick').includes("'" + sKey + "'"));
+  if (matchingTab) setStakeholder(matchingTab, sKey);
+  buildDonutChart(key);
+  updateViewTitle();
+}
+
+function setDrill(el, key) {
+  document.querySelectorAll('.db-sidebar-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  currentDrill = key;
+  const d = drillData[key];
+  document.getElementById('drillLabel').textContent = d.label;
+  document.getElementById('drillContent').innerHTML = d.html;
+  document.getElementById('drillPanel').style.display = 'block';
+  // Update tbl2 title to reflect drill dimension
+  const titles = { region:'Regional Performance', product:'Product Breakdown', team:'Team Performance', customer:'Customer Breakdown' };
+  document.getElementById('tbl2Title').textContent = titles[key] || 'Performance';
+}
+
+function applyRegionFilter() {
+  const val = document.getElementById('regionFilter').value;
+  const labels = { all:'All Regions', na:'North America', eu:'Europe', apac:'APAC', latam:'LATAM' };
+  updateViewTitle(labels[val]);
+}
+
+function applyPeriodFilter() {
+  currentPeriod = document.getElementById('periodFilter').value;
+  document.getElementById('donutPeriod').textContent = periodLabel[currentPeriod] + ' split';
+  updateViewTitle();
+}
+
+function updateViewTitle(regionOverride) {
+  const stMap = { cfo:'CFO Revenue View', ops:'Operations Efficiency View', product:'Product Usage View' };
+  const base = stMap[currentStakeholder] || 'Executive View';
+  document.getElementById('viewTitle').textContent = base + ' — ' + periodLabel[currentPeriod];
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+buildMainChart('cfo');
+buildDonutChart('overview');
+</script>
+</body>
+</html>
